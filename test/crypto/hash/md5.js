@@ -1,8 +1,10 @@
 'use strict';
 
-var openpgp = require('openpgp'),
-  util = openpgp.util,
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../src/index');
+
+var util = openpgp.util,
   MD5 = openpgp.crypto.hash.md5,
+  chai = require('chai'),
   expect = chai.expect;
 
 it('MD5 with test vectors from RFC 1321', function(done) {

@@ -1,8 +1,9 @@
-var openpgp = require('openpgp');
-
 'use strict';
 
-var expect = chai.expect;
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/index');
+
+var chai = require('chai'),
+  expect = chai.expect;
 
 describe("Packet", function() {
 	var armored_key =
@@ -43,12 +44,12 @@ describe("Packet", function() {
 		'-----END PGP PRIVATE KEY BLOCK-----';
 
   it('Symmetrically encrypted packet', function(done) {
-		var message = new openpgp.packet.list();
+		var message = new openpgp.packet.List();
 
-		var literal = new openpgp.packet.literal();
+		var literal = new openpgp.packet.Literal();
 		literal.setText('Hello world');
 		
-		var enc = new openpgp.packet.symmetrically_encrypted();
+		var enc = new openpgp.packet.SymmetricallyEncrypted();
 		message.push(enc);
 		enc.packets.push(literal);
 
@@ -57,7 +58,7 @@ describe("Packet", function() {
 
 		enc.encrypt(algo, key);
 
-		var msg2 = new openpgp.packet.list();
+		var msg2 = new openpgp.packet.List();
 		msg2.read(message.write());
 
 		msg2[0].decrypt(algo, key);
@@ -70,16 +71,16 @@ describe("Packet", function() {
 		var key = '12345678901234567890123456789012',
 			algo = 'aes256';
 
-		var literal = new openpgp.packet.literal(),
-			enc = new openpgp.packet.sym_encrypted_integrity_protected(),
-			msg = new openpgp.packet.list();
+		var literal = new openpgp.packet.Literal(),
+			enc = new openpgp.packet.SymEncryptedIntegrityProtected(),
+			msg = new openpgp.packet.List();
 
 		msg.push(enc);
 		literal.setText('Hello world!');
 		enc.packets.push(literal);
 		enc.encrypt(algo, key);
 		
-		var msg2 = new openpgp.packet.list();
+		var msg2 = new openpgp.packet.List();
 		msg2.read(msg.write());
 
 		msg2[0].decrypt(algo, key);
@@ -100,7 +101,7 @@ describe("Packet", function() {
 
 		var msgbytes = openpgp.armor.decode(msg).data;
 
-		var parsed = new openpgp.packet.list();
+		var parsed = new openpgp.packet.List();
 		parsed.read(msgbytes);
 
 		parsed[0].decrypt('test');
@@ -122,14 +123,14 @@ describe("Packet", function() {
 		var mpi = [mpi.n, mpi.ee, mpi.d, mpi.p, mpi.q, mpi.u];
 
 		mpi = mpi.map(function(k) {
-				var mpi = new openpgp.mpi();
+				var mpi = new openpgp.MPI();
 				mpi.fromBigInteger(k);
 				return mpi;
 		});
 
-		var enc = new openpgp.packet.public_key_encrypted_session_key(),
-			msg = new openpgp.packet.list(),
-			msg2 = new openpgp.packet.list();
+		var enc = new openpgp.packet.PublicKeyEncryptedSessionKey(),
+			msg = new openpgp.packet.List(),
+			msg2 = new openpgp.packet.List();
 
 		enc.sessionKey = '12345678901234567890123456789012';
 		enc.publicKeyAlgorithm = 'rsa_encrypt';
@@ -171,11 +172,11 @@ describe("Packet", function() {
 			'=lKiS\n' +
 			'-----END PGP PRIVATE KEY BLOCK-----';
 
-		var key = new openpgp.packet.list();
+		var key = new openpgp.packet.List();
 		key.read(openpgp.armor.decode(armored_key).data);
 		key = key[0];
 
-		var enc = new openpgp.packet.public_key_encrypted_session_key(),
+		var enc = new openpgp.packet.PublicKeyEncryptedSessionKey(),
 			secret = '12345678901234567890123456789012';
 
 		enc.sessionKey = secret;
@@ -240,11 +241,11 @@ describe("Packet", function() {
 			'-----END PGP MESSAGE-----';
 
 
-		var key = new openpgp.packet.list();
+		var key = new openpgp.packet.List();
 		key.read(openpgp.armor.decode(armored_key).data);
 		key = key[3];
 
-		var msg = new openpgp.packet.list();
+		var msg = new openpgp.packet.List();
 		msg.read(openpgp.armor.decode(armored_msg).data);
 
 		msg[0].decrypt(key);
@@ -260,10 +261,10 @@ describe("Packet", function() {
 		var passphrase = 'hello',
 			algo = 'aes256';
 
-		var literal = new openpgp.packet.literal(),
-			key_enc = new openpgp.packet.sym_encrypted_session_key(),
-			enc = new openpgp.packet.sym_encrypted_integrity_protected(),
-			msg = new openpgp.packet.list();
+		var literal = new openpgp.packet.Literal(),
+			key_enc = new openpgp.packet.SymEncryptedSessionKey(),
+			enc = new openpgp.packet.SymEncryptedIntegrityProtected(),
+			msg = new openpgp.packet.List();
 
 		msg.push(key_enc);
 		msg.push(enc);
@@ -278,7 +279,7 @@ describe("Packet", function() {
 		enc.encrypt(algo, key);
 
 
-		var msg2 = new openpgp.packet.list();
+		var msg2 = new openpgp.packet.List();
 		msg2.read(msg.write());
 
 		msg2[0].decrypt(passphrase);
@@ -302,12 +303,12 @@ describe("Packet", function() {
 			'=pR+C\n' +
 			'-----END PGP MESSAGE-----';
 
-		var key = new openpgp.packet.list();
+		var key = new openpgp.packet.List();
 		key.read(openpgp.armor.decode(armored_key).data);
 		key = key[3];
 		key.decrypt('test');
 
-		var msg = new openpgp.packet.list();
+		var msg = new openpgp.packet.List();
 		msg.read(openpgp.armor.decode(armored_msg).data);
 
 		msg[0].decrypt(key);
@@ -320,7 +321,7 @@ describe("Packet", function() {
   });
 
   it('Secret key reading with signature verification.', function(done) {
-		var key = new openpgp.packet.list();
+		var key = new openpgp.packet.List();
 		key.read(openpgp.armor.decode(armored_key).data);
 
 
@@ -357,11 +358,11 @@ describe("Packet", function() {
 			'=htrB\n' +
 			'-----END PGP MESSAGE-----'
 
-		var key = new openpgp.packet.list();
+		var key = new openpgp.packet.List();
 		key.read(openpgp.armor.decode(armored_key).data);
 		key[3].decrypt('test')
 
-		var msg = new openpgp.packet.list();
+		var msg = new openpgp.packet.List();
 		msg.read(openpgp.armor.decode(armored_msg).data);
 
 		msg[0].decrypt(key[3]);
@@ -376,8 +377,8 @@ describe("Packet", function() {
   });
 
   it('Writing and encryption of a secret key packet.', function(done) {
-		var key = new openpgp.packet.list();
-		key.push(new openpgp.packet.secret_key);
+		var key = new openpgp.packet.List();
+		key.push(new openpgp.packet.SecretKey);
 
 		var rsa = new openpgp.crypto.publicKey.rsa(),
 			mpi = rsa.generate(512, "10001")
@@ -386,7 +387,7 @@ describe("Packet", function() {
 		var mpi = [mpi.n, mpi.ee, mpi.d, mpi.p, mpi.q, mpi.u];
 
 		mpi = mpi.map(function(k) {
-				var mpi = new openpgp.mpi();
+				var mpi = new openpgp.MPI();
 				mpi.fromBigInteger(k);
 				return mpi;
 		});
@@ -397,7 +398,7 @@ describe("Packet", function() {
 
 		var raw = key.write();
 
-		var key2 = new openpgp.packet.list();
+		var key2 = new openpgp.packet.List();
 		key2.read(raw);
 		key2[0].decrypt('hello');
 	
@@ -406,7 +407,7 @@ describe("Packet", function() {
   });
 
   it('Writing and verification of a signature packet.', function(done) {
-		var key = new openpgp.packet.secret_key();
+		var key = new openpgp.packet.SecretKey();
 
 		var rsa = new openpgp.crypto.publicKey.rsa,
 			mpi = rsa.generate(512, "10001")
@@ -414,16 +415,16 @@ describe("Packet", function() {
 		var mpi = [mpi.n, mpi.ee, mpi.d, mpi.p, mpi.q, mpi.u];
 
 		mpi = mpi.map(function(k) {
-				var mpi = new openpgp.mpi();
+				var mpi = new openpgp.MPI();
 				mpi.fromBigInteger(k);
 				return mpi;
 		});
 
 		key.mpi = mpi;
 
-		var signed = new openpgp.packet.list(),
-			literal = new openpgp.packet.literal(),
-			signature = new openpgp.packet.signature();
+		var signed = new openpgp.packet.List(),
+			literal = new openpgp.packet.Literal(),
+			signature = new openpgp.packet.Signature();
 
 		literal.setText('Hello world');
 
@@ -438,7 +439,7 @@ describe("Packet", function() {
 
 		var raw = signed.write();
 
-		var signed2 = new openpgp.packet.list();
+		var signed2 = new openpgp.packet.List();
 		signed2.read(raw);
 
 		var verified = signed2[1].verify(key, signed2[0]);

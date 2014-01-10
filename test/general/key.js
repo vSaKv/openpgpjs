@@ -1,8 +1,9 @@
-var openpgp = require('openpgp');
-
 'use strict';
 
-var expect = chai.expect;
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/index');
+
+var chai = require('chai'),
+	expect = chai.expect;
 
 describe('Key', function() {
   var twoKeys =
@@ -265,7 +266,7 @@ describe('Key', function() {
     var pubKey = pubKeys.keys[0];
     expect(pubKey).to.exist;
 
-    var packetlist = new openpgp.packet.list();
+    var packetlist = new openpgp.packet.List();
 
     packetlist.read(openpgp.armor.decode(pub_sig_test).data);
 

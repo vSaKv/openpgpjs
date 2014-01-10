@@ -1,8 +1,9 @@
-var openpgp = require('openpgp');
-
 'use strict';
 
-var expect = chai.expect;
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/index');
+
+var chai = require('chai'),
+	expect = chai.expect;
 
 describe("Signature", function() {
   var priv_key_arm1 =

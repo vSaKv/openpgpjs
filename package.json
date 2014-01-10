@@ -1,10 +1,20 @@
 {
-  "name": "openpgp",
-  "version": "0.2.0-dev",
+  "name": "openpgpjs",
+  "description":  "A Javascript implementation of the OpenPGP protocol.",
+  "version": "0.2.0",
+  "homepage": "http://openpgpjs.org/",
   "engines": {
     "node": ">=0.8"
   },
-  "main": "./src/index.js",
+  "keywords": ["crypto", "pgp", "gpg", "openpgp"],
+  "main": "src/index.js",
+  "directories": {
+    "lib": "src"
+  },
+  "files": [
+    "src/",
+    "test/unittests.js", "test/general", "test/crypto"
+  ],
   "scripts": {
     "pretest": "grunt",
     "test": "grunt test"
@@ -22,6 +32,14 @@
     "grunt-text-replace": "*",
     "grunt-jsbeautifier": "*",
     "grunt-contrib-jshint": "*",
-    "grunt-jsdoc": "*"
+    "grunt-jsdoc": "*",
+    "grunt-mocha-test": "~0.8.1"
+  },
+  "dependencies": {
+    "node-localstorage": "~0.3.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openpgpjs/openpgpjs"
   }
 }

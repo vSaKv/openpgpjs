@@ -1,7 +1,9 @@
 'use strict';
 
-var openpgp = require('openpgp'),
-  util = openpgp.util,
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../src/index');
+
+var util = openpgp.util,
+  chai = require('chai'),
   expect = chai.expect;
 
 it('CAST-128 cipher test with test vectors from RFC2144', function (done) {

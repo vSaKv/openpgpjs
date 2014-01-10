@@ -1,7 +1,9 @@
 'use strict';
 
-var openpgp = require('openpgp'),
-  util = openpgp.util,
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../src/index');
+
+var util = openpgp.util,
+  chai = require('chai'),
   expect = chai.expect;
 
 it('Twofish with test vectors from http://www.schneier.com/code/ecb_ival.txt', function(done) {

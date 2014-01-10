@@ -1,7 +1,9 @@
 'use strict';
 
-var openpgp = require('openpgp'),
-  util = openpgp.util,
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../../src/index');
+
+var util = openpgp.util,
+  chai = require('chai'),
   expect = chai.expect;
 
 describe('AES Rijndael cipher test with test vectors from ecb_tbl.txt', function() {
