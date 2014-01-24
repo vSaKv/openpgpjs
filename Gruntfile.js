@@ -23,6 +23,11 @@ module.exports = function(grunt) {
           external: [ 'crypto', 'node-localstorage' ]
         }
       },
+      worker: {
+        files: {
+          'dist/openpgp.worker.js': [ './src/worker/worker.js' ]
+        }
+      },
       unittests: {
         files: {
           'test/lib/unittests-bundle.js': []
@@ -102,7 +107,8 @@ module.exports = function(grunt) {
         src: ['mocha/mocha.css', 'mocha/mocha.js', 'chai/chai.js'],
         dest: 'test/lib/'
       }
-    }
+    },
+    clean: ['dist/']
   });
 
   // Load the plugin(s)
@@ -114,9 +120,10 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-jsdoc');
   grunt.loadNpmTasks('grunt-mocha-test');
   grunt.loadNpmTasks('grunt-contrib-copy');
+  grunt.loadNpmTasks('grunt-contrib-clean');
 
   grunt.registerTask('default', 'Build OpenPGP.js', function() {
-    grunt.task.run(['browserify', 'replace', 'uglify', 'npm_pack']);
+    grunt.task.run(['clean', 'browserify', 'replace', 'uglify', 'npm_pack']);
     //TODO jshint is not run because of too many discovered issues, once these are addressed it should autorun
     grunt.log.ok('Before Submitting a Pull Request please also run `grunt jshint`.');
   });

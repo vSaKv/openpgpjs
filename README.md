@@ -9,11 +9,11 @@ OpenPGP.js
 
 For server side use, install via npm:
 
-    npm install openpgpjs
+    npm install openpgp
 
 Example:
 
-    var openpgp = require('openpgpjs);
+    var openpgp = require('openpgp');
     var key = '-----BEGIN PGP PUBLIC KEY BLOCK ... END PGP PUBLIC KEY BLOCK-----';
     var publicKey = openpgp.key.readArmored(key);
     var pgpMessage = openpgp.encryptMessage(publicKey.keys, 'Hello, World!');
@@ -24,15 +24,21 @@ Fetch a minified build under [releases](https://github.com/openpgpjs/openpgpjs/r
 
 OpenPGP.js currently only fully supports browsers that implement `window.crypto.getRandomValues`. If you can help us support more browsers and runtimes, please chip in!
 
-### To build
+### Security recommendations
+
+It should be noted that js crypto apps deployed via regular web hosting (a.k.a. [**host-based security**](https://www.schneier.com/blog/archives/2012/08/cryptocat.html)) provide users with less security than installable apps with auditable static versions. Installable apps can be deployed as a [Firefox](https://developer.mozilla.org/en-US/Marketplace/Publishing/Packaged_apps) or [Chrome](http://developer.chrome.com/apps/about_apps.html) packaged app. These apps are basically signed zip files and their runtimes typically enforce a strict [Content Security Policy (CSP)](http://www.html5rocks.com/en/tutorials/security/content-security-policy/) to protect users against [XSS](http://en.wikipedia.org/wiki/Cross-site_scripting). This [blogpost](http://tonyarcieri.com/whats-wrong-with-webcrypto) explains the trust model of the web quite well.
+
+It is also recommended to set a strong passphrase that protects the user's private key on disk.
+
+## Development
+
+You can create your own build in `dist/openpgp.min.js` to use in your project.
 
     npm install && grunt
 
-Then take `dist/openpgp.min.js` to use in your project.
-
 ### Run tests
 
-    npm install && npm test
+    npm test
 
 ### Documentation
 
