@@ -327,17 +327,17 @@ Key.prototype.getPreferredHashAlgorithm = function() {
 function isValidEncryptionKeyPacket(keyPacket, signature) {
   return keyPacket.algorithm !== enums.read(enums.publicKey, enums.publicKey.dsa) &&
          keyPacket.algorithm !== enums.read(enums.publicKey, enums.publicKey.rsa_sign) &&
-         ((signature.keyFlags & enums.keyFlags.encrypt_communication) !== 0 ||
-          (signature.keyFlags & enums.keyFlags.encrypt_storage) !== 0 ||
-          !signature.keyFlags);
+         (!signature.keyFlags ||
+          (signature.keyFlags[0] & enums.keyFlags.encrypt_communication) !== 0 ||
+          (signature.keyFlags[0] & enums.keyFlags.encrypt_storage) !== 0);
 }
 
 function isValidSigningKeyPacket(keyPacket, signature) {
   return (keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.dsa) ||
           keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.rsa_sign) ||
           keyPacket.algorithm == enums.read(enums.publicKey, enums.publicKey.rsa_encrypt_sign)) &&
-         ((signature.keyFlags & enums.keyFlags.sign_data) !== 0 ||
-          !signature.keyFlags);
+         (!signature.keyFlags ||
+          (signature.keyFlags[0] & enums.keyFlags.sign_data) !== 0);
 }
 
 /**
@@ -440,10 +440,40 @@ Key.prototype.verifyPrimaryKey = function() {
   }
   // check V4 expiration time
   if (this.primaryKey.version == 4 && primaryUser.selfCertificate.keyNeverExpires === false &&
-    Date.now() > (primaryUser.selfCertificate.created.getTime() + primaryUser.selfCertificate.keyExpirationTime*1000)) {
+    Date.now() > (this.primaryKey.created.getTime() + primaryUser.selfCertificate.keyExpirationTime*1000)) {
     return enums.keyStatus.expired;
   }
   return enums.keyStatus.valid;
+};
+
+/**
+ * Returns the expiration time of the primary key or null if key does not expire
+ * @return {Date|null}
+ */
+Key.prototype.getExpirationTime = function() {
+  if (this.primaryKey.version == 3) {
+    return getExpirationTime(this.primaryKey);
+  }
+  if (this.primaryKey.version == 4) {
+    var primaryUser = this.getPrimaryUser();
+    if (!primaryUser) {
+      return null;
+    }
+    return getExpirationTime(this.primaryKey, primaryUser.selfCertificate);
+  }
+};
+
+
+function getExpirationTime(keyPacket, selfCertificate) {
+  // check V3 expiration time
+  if (keyPacket.version == 3 && keyPacket.expirationTimeV3 !== 0) {
+    return new Date(keyPacket.created.getTime() + keyPacket.expirationTimeV3*24*3600*1000);
+  }
+  // check V4 expiration time
+  if (keyPacket.version == 4 && selfCertificate.keyNeverExpires === false) {
+    return new Date(keyPacket.created.getTime() + selfCertificate.keyExpirationTime*1000);
+  }
+  return null;
 };
 
 /**
@@ -640,7 +670,7 @@ SubKey.prototype.verify = function(primaryKey) {
   // check subkey revocation signature
   if (this.revocationSignature && !this.revocationSignature.isExpired() && 
      (this.revocationSignature.verified || 
-      this.revocationSignature.verify(primaryKey, {key: this.subKey}))) {
+      this.revocationSignature.verify(primaryKey, {key:primaryKey, bind: this.subKey}))) {
     return enums.keyStatus.revoked;
   }
   // check V3 expiration time
@@ -666,6 +696,14 @@ SubKey.prototype.verify = function(primaryKey) {
     return enums.keyStatus.expired;
   }
   return enums.keyStatus.valid;
+};
+
+/**
+ * Returns the expiration time of the subkey or null if key does not expire
+ * @return {Date|null}
+ */
+SubKey.prototype.getExpirationTime = function() {
+  return getExpirationTime(this.subKey, this.bindingSignature);
 };
 
 /**

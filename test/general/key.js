@@ -278,7 +278,7 @@ describe('Key', function() {
     done();
   });
 
-  it.skip('Verify status of revoked subkey', function(done) {
+  it('Verify status of revoked subkey', function(done) {
     var pubKeys = openpgp.key.readArmored(pub_sig_test);
     expect(pubKeys).to.exist;
     expect(pubKeys.err).to.not.exist;
@@ -293,5 +293,34 @@ describe('Key', function() {
     expect(status).to.equal(openpgp.enums.keyStatus.revoked);
     done();
   });
+
+  it('Evaluate key flags to find valid encryption key packet', function() {
+    var pubKeys = openpgp.key.readArmored(pub_sig_test);
+    expect(pubKeys).to.exist;
+    expect(pubKeys.err).to.not.exist;
+    expect(pubKeys.keys).to.have.length(1);
+
+    var pubKey = pubKeys.keys[0];
+    // remove subkeys
+    pubKey.subKeys = null;
+    // primary key has only key flags for signing
+    var keyPacket = pubKey.getEncryptionKeyPacket();
+    expect(keyPacket).to.not.exist;
+  });
+
+  it('Method getExpirationTime V4 Key', function() {
+    var pubKey = openpgp.key.readArmored(twoKeys).keys[1];
+    expect(pubKey).to.exist;
+    expect(pubKey).to.be.an.instanceof(openpgp.key.Key);
+    expect(pubKey.getExpirationTime().toISOString()).to.be.equal('2018-11-26T10:58:29.000Z');
+  });
+
+  it('Method getExpirationTime V4 SubKey', function() {
+    var pubKey = openpgp.key.readArmored(twoKeys).keys[1];
+    expect(pubKey).to.exist;
+    expect(pubKey).to.be.an.instanceof(openpgp.key.Key);
+    expect(pubKey.subKeys[0].getExpirationTime().toISOString()).to.be.equal('2018-11-26T10:58:29.000Z');
+  });
+
 });
 

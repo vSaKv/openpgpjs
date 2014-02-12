@@ -7,7 +7,7 @@ var keyring = new openpgp.Keyring(),
   expect = chai.expect;
 
 describe("Keyring", function() {
-  var user = 'test@t-online.de',
+  var user = 'whiteout.test@t-online.de',
     passphrase = 'asdf',
     keySize = 512,
     keyId = 'F6F60E9B42CDFF4C',
@@ -54,7 +54,7 @@ describe("Keyring", function() {
   });
   it('getPublicKeyForAddress() - valid address', function(done) {
     var key = keyring.getPublicKeyForAddress(user);
-    expect(key).to.exist;
+    expect(key).to.exist.and.have.length(1);
     done();
   });
   it('getPrivateKeyForAddress() - unknown address', function(done) {
@@ -64,7 +64,7 @@ describe("Keyring", function() {
   });
   it('getPrivateKeyForAddress() - valid address', function(done) {
     var key = keyring.getPrivateKeyForAddress(user);
-    expect(key).to.exist;
+    expect(key).to.exist.and.have.length(1);
     done();
   });
   it('getKeysForKeyId() - unknown id', function(done) {
@@ -77,6 +77,25 @@ describe("Keyring", function() {
     expect(keys).to.exist.and.have.length(1);
     done();
   });
+  it('store keys in localstorage', function(done){
+    keyring.store();
+    done();
+  });
+  it('after loading from localstorage: getKeysForKeyId() - valid id', function(done) {
+    var keyring = new openpgp.Keyring(),
+      keys = keyring.getKeysForKeyId(keyId.toLowerCase());
+    expect(keys).to.exist.and.have.length(1);
+    done();
+  });
+  it('customize localstorage itemname', function() {
+    var localstore1 = new openpgp.Keyring.localstore('my-custom-name');
+    var localstore2 = new openpgp.Keyring.localstore('my-custom-name');
+    var localstore3 = new openpgp.Keyring.localstore();
+    localstore3.store([]);
+    var key = openpgp.key.readArmored(pubkey).keys[0];
+    localstore1.store([key]);
+    expect(localstore2.load()[0].primaryKey.getKeyId().equals(key.primaryKey.getKeyId())).to.be.true;
+    expect(localstore3.load()).to.have.length(0);
+  });
 });
 
- 
