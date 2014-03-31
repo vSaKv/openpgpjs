@@ -1,6 +1,6 @@
 'use strict';
 
-var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('../../src/index');
+var openpgp = typeof window != 'undefined' && window.openpgp ? window.openpgp : require('openpgp');
 
 var chai = require('chai'),
   expect = chai.expect;
@@ -9,7 +9,6 @@ var chai = require('chai'),
 var pub_key_rsa =
   ['-----BEGIN PGP PUBLIC KEY BLOCK-----',
   'Version: GnuPG v2.0.19 (GNU/Linux)',
-  'Type: RSA/RSA',
   '',
   'mI0EUmEvTgEEANyWtQQMOybQ9JltDqmaX0WnNPJeLILIM36sw6zL0nfTQ5zXSS3+',
   'fIF6P29lJFxpblWk02PSID5zX/DYU9/zjM2xPO8Oa4xo0cVTOTLj++Ri5mtr//f5',
@@ -35,8 +34,6 @@ var pub_key_rsa =
 var priv_key_rsa =
   ['-----BEGIN PGP PRIVATE KEY BLOCK-----',
   'Version: GnuPG v2.0.19 (GNU/Linux)',
-  'Type: RSA/RSA 1024',
-  'Pwd: hello world',
   '',
   'lQH+BFJhL04BBADclrUEDDsm0PSZbQ6pml9FpzTyXiyCyDN+rMOsy9J300Oc10kt',
   '/nyBej9vZSRcaW5VpNNj0iA+c1/w2FPf84zNsTzvDmuMaNHFUzky4/vkYuZra//3',
@@ -391,7 +388,7 @@ describe('High level API', function() {
       wProxy.encryptMessage([pubKeyRSA], plaintext, function(err, data) {
         expect(data).to.not.exist;
         expect(err).to.exist;
-        expect(err).to.eql(new Error('Random number buffer depleted.'));
+        expect(err).to.eql(new Error('Random number buffer depleted'));
         done();
       });
     });
@@ -401,7 +398,7 @@ describe('High level API', function() {
   describe('Key generation', function() {
 
     it('Generate 1024-bit RSA/RSA key async', function (done) {
-      openpgp.generateKeyPair(3, 1024, 'Test McTestington <test@example.com>', 'hello world', function(err, data) {
+      openpgp.generateKeyPair(openpgp.enums.publicKey.rsa_encrypt_sign, 1024, 'Test McTestington <test@example.com>', 'hello world', function(err, data) {
         expect(err).to.not.exist;
         expect(data).to.exist;
         expect(data.publicKeyArmored).to.match(/^-----BEGIN PGP PUBLIC/);
@@ -412,7 +409,7 @@ describe('High level API', function() {
     });
 
     it('Generate 1024-bit RSA/RSA key sync', function () {
-      var key = openpgp.generateKeyPair(3, 1024, 'Test McTestington <test@example.com>', 'hello world');
+      var key = openpgp.generateKeyPair(openpgp.enums.publicKey.rsa_encrypt_sign, 1024, 'Test McTestington <test@example.com>', 'hello world');
       expect(key).to.exist;
       expect(key.publicKeyArmored).to.match(/^-----BEGIN PGP PUBLIC/);
       expect(key.privateKeyArmored).to.match(/^-----BEGIN PGP PRIVATE/);
@@ -512,6 +509,8 @@ describe('Random Buffer', function() {
   it('Set Method', function () {
     randomBuffer.init(5);
     var buf = new Uint32Array(2);
+    expect(randomBuffer.set.bind(randomBuffer, buf)).to.throw('Invalid type: buf not an Uint8Array');
+    buf = new Uint8Array(2);
     buf[0] = 1; buf[1] = 2;
     randomBuffer.set(buf);
     expect(equal(randomBuffer.buffer, [1,2,0,0,0])).to.be.true;
@@ -523,7 +522,7 @@ describe('Random Buffer', function() {
     expect(equal(randomBuffer.buffer, [1,2,1,2,1])).to.be.true;
     expect(randomBuffer.size).to.equal(5);
     randomBuffer.init(1);
-    var buf = new Uint32Array(2);
+    buf = new Uint8Array(2);
     buf[0] = 1; buf[1] = 2;
     randomBuffer.set(buf);
     expect(buf).to.to.have.property('0', 1);
@@ -532,21 +531,23 @@ describe('Random Buffer', function() {
 
   it('Get Method', function () {
     randomBuffer.init(5);
-    var buf = new Uint32Array(5);
+    var buf = new Uint8Array(5);
     buf[0] = 1; buf[1] = 2; buf[2] = 5; buf[3] = 7; buf[4] = 8;
     randomBuffer.set(buf);
-    var buf = new Uint32Array(2);
+    buf = new Uint32Array(2);
+    expect(randomBuffer.get.bind(randomBuffer, buf)).to.throw('Invalid type: buf not an Uint8Array');
+    buf = new Uint8Array(2);
     randomBuffer.get(buf);
-    expect(equal(randomBuffer.buffer, [1,2,5,7,8])).to.be.true;
+    expect(equal(randomBuffer.buffer, [1,2,5,0,0])).to.be.true;
     expect(randomBuffer.size).to.equal(3);
     expect(buf).to.to.have.property('0', 8);
     expect(buf).to.to.have.property('1', 7);
-    expect(equal(randomBuffer.buffer, [1,2,5,7,8])).to.be.true;
     randomBuffer.get(buf);
     expect(buf).to.to.have.property('0', 5);
     expect(buf).to.to.have.property('1', 2);
+    expect(equal(randomBuffer.buffer, [1,0,0,0,0])).to.be.true;
     expect(randomBuffer.size).to.equal(1);
-    expect(function() { randomBuffer.get(buf) }).to.throw('Random number buffer depleted.');
+    expect(function() { randomBuffer.get(buf) }).to.throw('Random number buffer depleted');
   });
 
 });

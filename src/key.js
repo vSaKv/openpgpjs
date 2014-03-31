@@ -474,13 +474,13 @@ function getExpirationTime(keyPacket, selfCertificate) {
     return new Date(keyPacket.created.getTime() + selfCertificate.keyExpirationTime*1000);
   }
   return null;
-};
+}
 
 /**
  * Returns primary user and most significant (latest valid) self signature
  * - if multiple users are marked as primary users returns the one with the latest self signature
  * - if no primary user is found returns the user with the latest self signature
- * @return {{user: Array<module:packet/User>, selfCertificate: Array<module:packet/signature>}} The primary user and the self signature
+ * @return {{user: Array<module:packet/User>, selfCertificate: Array<module:packet/signature>}|null} The primary user and the self signature
  */
 Key.prototype.getPrimaryUser = function() {
   var user = null;
@@ -493,15 +493,111 @@ Key.prototype.getPrimaryUser = function() {
     if (!selfCert) {
       continue;
     }
-    if (!user || 
-        !userSelfCert.isPrimaryUserID && selfCert.isPrimaryUserID ||
-         userSelfCert.created < selfCert.created) {
+    if (!user ||
+        (!userSelfCert.isPrimaryUserID || selfCert.isPrimaryUserID) &&
+        userSelfCert.created > selfCert.created) {
       user = this.users[i];
       userSelfCert = selfCert;
     }
   }
   return user ? {user: user, selfCertificate: userSelfCert} : null;
 };
+
+/**
+ * Update key with new components from specified key with same key ID:
+ * users, subkeys, certificates are merged into the destination key,
+ * duplicates are ignored.
+ * If the specified key is a private key and the destination key is public,
+ * the destination key is tranformed to a private key.
+ * @param  {module:key~Key} key source key to merge
+ */
+Key.prototype.update = function(key) {
+  var that = this;
+  if (key.verifyPrimaryKey() === enums.keyStatus.invalid) {
+    return;
+  }
+  if (this.primaryKey.getFingerprint() !== key.primaryKey.getFingerprint()) {
+    throw new Error('Key update method: fingerprints of keys not equal');
+  }
+  if (this.isPublic() && key.isPrivate()) {
+    // check for equal subkey packets
+    var equal = ((this.subKeys && this.subKeys.length) === (key.subKeys && key.subKeys.length)) &&
+                (!this.subKeys || this.subKeys.every(function(destSubKey) {
+                  return key.subKeys.some(function(srcSubKey) {
+                    return destSubKey.subKey.getFingerprint() === srcSubKey.subKey.getFingerprint();
+                  });
+                }));
+    if (!equal) {
+      throw new Error('Cannot update public key with private key if subkey mismatch');
+    }
+    this.primaryKey = key.primaryKey;
+  }
+  // revocation signature
+  if (!this.revocationSignature && key.revocationSignature && !key.revocationSignature.isExpired() &&
+     (key.revocationSignature.verified ||
+      key.revocationSignature.verify(key.primaryKey, {key: key.primaryKey}))) {
+    this.revocationSignature = key.revocationSignature;
+  }
+  // direct signatures
+  mergeSignatures(key, this, 'directSignatures');
+  // users
+  key.users.forEach(function(srcUser) {
+    var found = false;
+    for (var i = 0; i < that.users.length; i++) {
+      if (srcUser.userId && (srcUser.userId.userid === that.users[i].userId.userid) ||
+          srcUser.userAttribute && (srcUser.userAttribute.equals(that.users[i].userAttribute))) {
+        that.users[i].update(srcUser, that.primaryKey);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      that.users.push(srcUser);
+    }
+  });
+  // subkeys
+  if (key.subKeys) {
+    key.subKeys.forEach(function(srcSubKey) {
+      var found = false;
+      for (var i = 0; i < that.subKeys.length; i++) {
+        if (srcSubKey.subKey.getFingerprint() === that.subKeys[i].subKey.getFingerprint()) {
+          that.subKeys[i].update(srcSubKey, that.primaryKey);
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        that.subKeys.push(srcSubKey);
+      }
+    });
+  }
+};
+
+/**
+ * Merges signatures from source[attr] to dest[attr]
+ * @private
+ * @param  {Object} source
+ * @param  {Object} dest
+ * @param  {String} attr
+ * @param  {Function} checkFn optional, signature only merged if true
+ */
+function mergeSignatures(source, dest, attr, checkFn) {
+  source = source[attr];
+  if (source) {
+    if (!dest[attr]) {
+      dest[attr] = source;
+    } else {
+      source.forEach(function(sourceSig) {
+        if (!sourceSig.isExpired() && (!checkFn || checkFn(sourceSig)) &&
+            !dest[attr].some(function(destSig) {
+              return destSig.signature === sourceSig.signature;
+            })) {
+          dest[attr].push(sourceSig);
+        }
+      });
+    }
+  }
+}
 
 // TODO
 Key.prototype.revoke = function() {
@@ -617,6 +713,24 @@ User.prototype.verify = function(primaryKey) {
 };
 
 /**
+ * Update user with new components from specified user
+ * @param  {module:key~User} user source user to merge
+ * @param  {module:packet/signature} primaryKey primary key used for validation
+ */
+User.prototype.update = function(user, primaryKey) {
+  var that = this;
+  // self signatures
+  mergeSignatures(user, this, 'selfCertifications', function(srcSelfSig) {
+    return srcSelfSig.verified ||
+           srcSelfSig.verify(primaryKey, {userid: that.userId || that.userAttribute, key: primaryKey});
+  });
+  // other signatures
+  mergeSignatures(user, this, 'otherCertifications');
+  // revocation signatures
+  mergeSignatures(user, this, 'revocationCertifications');
+};
+
+/**
  * @class
  * @classdesc Class that represents a subkey packet and the relevant signatures.
  */
@@ -707,6 +821,30 @@ SubKey.prototype.getExpirationTime = function() {
 };
 
 /**
+ * Update subkey with new components from specified subkey
+ * @param  {module:key~SubKey} subKey source subkey to merge
+ * @param  {module:packet/signature} primaryKey primary key used for validation
+ */
+SubKey.prototype.update = function(subKey, primaryKey) {
+  if (this.verify(primaryKey) === enums.keyStatus.invalid) {
+    return;
+  }
+  if (this.subKey.getFingerprint() !== subKey.subKey.getFingerprint()) {
+    throw new Error('SubKey update method: fingerprints of subkeys not equal');
+  }
+  if (this.subKey.tag === enums.packet.publicSubkey &&
+      subKey.subKey.tag === enums.packet.secretSubkey) {
+    this.subKey = subKey.subKey;
+  }
+  // revocation signature
+  if (!this.revocationSignature && subKey.revocationSignature && !subKey.revocationSignature.isExpired() &&
+     (subKey.revocationSignature.verified ||
+      subKey.revocationSignature.verify(primaryKey, {key: primaryKey, bind: this.subKey}))) {
+    this.revocationSignature = subKey.revocationSignature;
+  }
+};
+
+/**
  * Reads an OpenPGP armored text and returns one or multiple key objects
  * @param {String} armoredText text to be parsed
  * @return {{keys: Array<module:key~Key>, err: (Array<Error>|null)}} result object with key and error arrays
@@ -755,6 +893,11 @@ function readArmored(armoredText) {
  * @static
  */
 function generate(keyType, numBits, userId, passphrase) {
+  // RSA Encrypt-Only and RSA Sign-Only are deprecated and SHOULD NOT be generated
+  if (keyType !== enums.publicKey.rsa_encrypt_sign) {
+    throw new Error('Only RSA Encrypt or Sign supported');
+  }
+
   var packetlist = new packet.List();
 
   var secretKeyPacket = new packet.SecretKey();
@@ -771,9 +914,25 @@ function generate(keyType, numBits, userId, passphrase) {
   var signaturePacket = new packet.Signature();
   signaturePacket.signatureType = enums.signature.cert_generic;
   signaturePacket.publicKeyAlgorithm = keyType;
-  //TODO we should load preferred hash from config, or as input to this function
-  signaturePacket.hashAlgorithm = enums.hash.sha256;
+  signaturePacket.hashAlgorithm = config.prefer_hash_algorithm;
   signaturePacket.keyFlags = [enums.keyFlags.certify_keys | enums.keyFlags.sign_data];
+  signaturePacket.preferredSymmetricAlgorithms = [];
+  signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes256);
+  signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes192);
+  signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.aes128);
+  signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.cast5);
+  signaturePacket.preferredSymmetricAlgorithms.push(enums.symmetric.tripledes);
+  signaturePacket.preferredHashAlgorithms = [];
+  signaturePacket.preferredHashAlgorithms.push(enums.hash.sha256);
+  signaturePacket.preferredHashAlgorithms.push(enums.hash.sha1);
+  signaturePacket.preferredHashAlgorithms.push(enums.hash.sha512);
+  signaturePacket.preferredCompressionAlgorithms = [];
+  signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zlib);
+  signaturePacket.preferredCompressionAlgorithms.push(enums.compression.zip);
+  if (config.integrity_protect) {
+    signaturePacket.features = [];
+    signaturePacket.features.push(1); // Modification Detection
+  }
   signaturePacket.sign(secretKeyPacket, dataToSign);
 
   var secretSubkeyPacket = new packet.SecretSubkey();
@@ -787,8 +946,7 @@ function generate(keyType, numBits, userId, passphrase) {
   var subkeySignaturePacket = new packet.Signature();
   subkeySignaturePacket.signatureType = enums.signature.subkey_binding;
   subkeySignaturePacket.publicKeyAlgorithm = keyType;
-  //TODO we should load preferred hash from config, or as input to this function
-  subkeySignaturePacket.hashAlgorithm = enums.hash.sha256;
+  subkeySignaturePacket.hashAlgorithm = config.prefer_hash_algorithm;
   subkeySignaturePacket.keyFlags = [enums.keyFlags.encrypt_communication | enums.keyFlags.encrypt_storage];
   subkeySignaturePacket.sign(secretKeyPacket, dataToSign);
 
@@ -801,6 +959,40 @@ function generate(keyType, numBits, userId, passphrase) {
   return new Key(packetlist);
 }
 
+/**
+ * Returns the preferred symmetric algorithm for a set of keys
+ * @param  {Array<module:key~Key>} keys Set of keys
+ * @return {enums.symmetric}   Preferred symmetric algorithm
+ */
+function getPreferredSymAlgo(keys) {
+  var prioMap = {};
+  for (var i = 0; i < keys.length; i++) {
+    var primaryUser = keys[i].getPrimaryUser();
+    if (!primaryUser || !primaryUser.selfCertificate.preferredSymmetricAlgorithms) {
+      return config.encryption_cipher;
+    }
+    primaryUser.selfCertificate.preferredSymmetricAlgorithms.forEach(function(algo, index) {
+      var entry = prioMap[algo] || (prioMap[algo] = {prio: 0, count: 0, algo: algo});
+      entry.prio += 64 >> index;
+      entry.count++;
+    });
+  }
+  var prefAlgo = {prio: 0, algo: config.encryption_cipher};
+  for (var algo in prioMap) {
+    try {
+      if (algo !== enums.symmetric.plaintext &&
+          algo !== enums.symmetric.idea && // not implemented
+          enums.read(enums.symmetric, algo) && // known algorithm
+          prioMap[algo].count === keys.length && // available for all keys
+          prioMap[algo].prio > prefAlgo.prio) {
+        prefAlgo = prioMap[algo];
+      }
+    } catch (e) {}
+  }
+  return prefAlgo.algo;
+}
+
 exports.Key = Key;
 exports.readArmored = readArmored;
 exports.generate = generate;
+exports.getPreferredSymAlgo = getPreferredSymAlgo;

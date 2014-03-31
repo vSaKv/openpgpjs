@@ -27,7 +27,8 @@ var base64 = require('./base64.js'),
   config = require('../config');
 
 /**
- * Finds out which Ascii Armoring type is used. This is an internal function
+ * Finds out which Ascii Armoring type is used. Throws error if unknown type.
+ * @private
  * @param {String} text [String] ascii armored text
  * @returns {Integer} 0 = MESSAGE PART n of m
  *         1 = MESSAGE PART n
@@ -35,24 +36,27 @@ var base64 = require('./base64.js'),
  *         3 = PGP MESSAGE
  *         4 = PUBLIC KEY BLOCK
  *         5 = PRIVATE KEY BLOCK
- *         null = unknown
  */
 function getType(text) {
-  var reHeader = /^-----([^-]+)-----$\n/m;
+  var reHeader = /^-----BEGIN PGP (MESSAGE, PART \d+\/\d+|MESSAGE, PART \d+|SIGNED MESSAGE|MESSAGE|PUBLIC KEY BLOCK|PRIVATE KEY BLOCK)-----$\n/m;
 
   var header = text.match(reHeader);
+
+  if (!header) {
+    throw new Error('Unknow ASCII armor type');
+  }
 
   // BEGIN PGP MESSAGE, PART X/Y
   // Used for multi-part messages, where the armor is split amongst Y
   // parts, and this is the Xth part out of Y.
-  if (header[1].match(/BEGIN PGP MESSAGE, PART \d+\/\d+/)) {
+  if (header[1].match(/MESSAGE, PART \d+\/\d+/)) {
     return enums.armor.multipart_section;
   } else
   // BEGIN PGP MESSAGE, PART X
   // Used for multi-part messages, where this is the Xth part of an
   // unspecified number of parts. Requires the MESSAGE-ID Armor
   // Header to be used.
-  if (header[1].match(/BEGIN PGP MESSAGE, PART \d+/)) {
+  if (header[1].match(/MESSAGE, PART \d+/)) {
     return enums.armor.multipart_last;
 
   } else
@@ -60,25 +64,25 @@ function getType(text) {
   // Used for detached signatures, OpenPGP/MIME signatures, and
   // cleartext signatures. Note that PGP 2.x uses BEGIN PGP MESSAGE
   // for detached signatures.
-  if (header[1].match(/BEGIN PGP SIGNED MESSAGE/)) {
+  if (header[1].match(/SIGNED MESSAGE/)) {
     return enums.armor.signed;
 
   } else
   // BEGIN PGP MESSAGE
   // Used for signed, encrypted, or compressed files.
-  if (header[1].match(/BEGIN PGP MESSAGE/)) {
+  if (header[1].match(/MESSAGE/)) {
     return enums.armor.message;
 
   } else
   // BEGIN PGP PUBLIC KEY BLOCK
   // Used for armoring public keys.
-  if (header[1].match(/BEGIN PGP PUBLIC KEY BLOCK/)) {
+  if (header[1].match(/PUBLIC KEY BLOCK/)) {
     return enums.armor.public_key;
 
   } else
   // BEGIN PGP PRIVATE KEY BLOCK
   // Used for armoring private keys.
-  if (header[1].match(/BEGIN PGP PRIVATE KEY BLOCK/)) {
+  if (header[1].match(/PRIVATE KEY BLOCK/)) {
     return enums.armor.private_key;
   }
 }
@@ -127,7 +131,7 @@ function getCheckSum(data) {
 function verifyCheckSum(data, checksum) {
   var c = getCheckSum(data);
   var d = checksum;
-  return c[0] == d[0] && c[1] == d[1] && c[2] == d[2];
+  return c[0] == d[0] && c[1] == d[1] && c[2] == d[2] && c[3] == d[3];
 }
 /**
  * Internal function to calculate a CRC-24 checksum over a given string (data)
@@ -207,8 +211,8 @@ function createcrc24(input) {
  * and an attribute "body" containing the body.
  */
 function splitHeaders(text) {
-  var reEmptyLine = /^[\t ]*\n/m;
-  var headers = "";
+  var reEmptyLine = /^\s*\n/m;
+  var headers = '';
   var body = text;
 
   var matchResult = reEmptyLine.exec(text);
@@ -216,9 +220,29 @@ function splitHeaders(text) {
   if (matchResult !== null) {
     headers = text.slice(0, matchResult.index);
     body = text.slice(matchResult.index + matchResult[0].length);
+  } else {
+    throw new Error('Mandatory blank line missing between armor headers and armor data');
   }
 
+  headers = headers.split('\n');
+  // remove empty entry
+  headers.pop();
+
   return { headers: headers, body: body };
+}
+
+/**
+ * Verify armored headers. RFC4880, section 6.3: "OpenPGP should consider improperly formatted
+ * Armor Headers to be corruption of the ASCII Armor."
+ * @private
+ * @param  {Array<String>} headers Armor headers
+ */
+function verifyHeaders(headers) {
+  for (var i = 0; i < headers.length; i++) {
+    if (!headers[i].match(/^(Version|Comment|MessageID|Hash|Charset): .+$/)) {
+      throw new Error('Improperly formatted armor header: ' + headers[i]);;
+    }
+  }
 }
 
 /**
@@ -257,9 +281,6 @@ function dearmor(text) {
   text = text.replace(/\r/g, '');
 
   var type = getType(text);
-  if (!type) {
-    throw new Error('Unknow ASCII armor type');
-  } 
 
   var splittext = text.split(reSplit);
 
@@ -280,33 +301,40 @@ function dearmor(text) {
 
     result = {
       data: base64.decode(msg_sum.body),
+      headers: msg.headers,
       type: type
     };
 
     checksum = msg_sum.checksum;
   } else {
-    // Reverse dash-escaping for msg and remove trailing whitespace at end of line
+    // Reverse dash-escaping for msg and remove trailing whitespace (0x20) and tabs (0x09) at end of line
     msg = splitHeaders(splittext[indexBase].replace(/^- /mg, '').replace(/[\t ]+\n/g, "\n"));
     var sig = splitHeaders(splittext[indexBase + 1].replace(/^- /mg, ''));
+    verifyHeaders(sig.headers);
     var sig_sum = splitChecksum(sig.body);
 
     result = {
       text:  msg.body.replace(/\n$/, '').replace(/\n/g, "\r\n"),
       data: base64.decode(sig_sum.body),
+      headers: msg.headers,
       type: type
     };
 
     checksum = sig_sum.checksum;
   }
 
+  checksum = checksum.substr(0, 4);
+
   if (!verifyCheckSum(result.data, checksum)) {
     throw new Error("Ascii armor integrity check on message failed: '" +
       checksum +
       "' should be '" +
-      getCheckSum(result) + "'");
-  } else {
-    return result;
+      getCheckSum(result.data) + "'");
   }
+
+  verifyHeaders(result.headers);
+
+  return result;
 }
 
 

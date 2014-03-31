@@ -44,16 +44,6 @@ module.exports = {
   },
 
   /**
-   * Return a pseudo-random number in the specified range
-   * @param {Integer} from Min of the random number
-   * @param {Integer} to Max of the random number (max 32bit)
-   * @return {Integer} A pseudo random number
-   */
-  getPseudoRandom: function(from, to) {
-    return Math.round(Math.random() * (to - from)) + from;
-  },
-
-  /**
    * Return a secure random number in the specified range
    * @param {Integer} from Min of the random number
    * @param {Integer} to Max of the random number (max 32bit)
@@ -86,6 +76,9 @@ module.exports = {
    * @param {Uint8Array} buf
    */
   getRandomValues: function(buf) {
+    if (!(buf instanceof Uint8Array)) {
+      throw new Error('Invalid type: buf not an Uint8Array');
+    }
     if (typeof window !== 'undefined' && window.crypto) {
       window.crypto.getRandomValues(buf);
     } else if (nodeCrypto) {
@@ -104,8 +97,8 @@ module.exports = {
    * @return {BigInteger} Resulting big integer
    */
   getRandomBigInteger: function(bits) {
-    if (bits < 0) {
-      return null;
+    if (bits < 1) {
+      throw new Error('Illegal parameter value: bits < 1');
     }
     var numBytes = Math.floor((bits + 7) / 8);
 
@@ -124,7 +117,7 @@ module.exports = {
 
   getRandomBigIntegerInRange: function(min, max) {
     if (max.compareTo(min) <= 0) {
-      return;
+      throw new Error('Illegal parameter value: max <= min');
     }
 
     var range = max.subtract(min);
@@ -152,38 +145,47 @@ function RandomBuffer() {
  * @param  {Integer} size size of buffer
  */
 RandomBuffer.prototype.init = function(size) {
-  this.buffer = new Uint32Array(size);
+  this.buffer = new Uint8Array(size);
   this.size = 0;
 };
 
 /**
  * Concat array of secure random numbers to buffer
- * @param {Uint32Array} buf
+ * @param {Uint8Array} buf
  */
 RandomBuffer.prototype.set = function(buf) {
   if (!this.buffer) {
     throw new Error('RandomBuffer is not initialized');
   }
+  if (!(buf instanceof Uint8Array)) {
+    throw new Error('Invalid type: buf not an Uint8Array');
+  }
   var freeSpace = this.buffer.length - this.size;
   if (buf.length > freeSpace) {
     buf = buf.subarray(0, freeSpace);
   }
+  // set buf with offset old size of buffer
   this.buffer.set(buf, this.size);
   this.size += buf.length;
 };
 
 /**
  * Take numbers out of buffer and copy to array
- * @param {Uint32Array} buf the destination array
+ * @param {Uint8Array} buf the destination array
  */
 RandomBuffer.prototype.get = function(buf) {
   if (!this.buffer) {
     throw new Error('RandomBuffer is not initialized');
   }
+  if (!(buf instanceof Uint8Array)) {
+    throw new Error('Invalid type: buf not an Uint8Array');
+  }
   if (this.size < buf.length) {
-    throw new Error('Random number buffer depleted.')
+    throw new Error('Random number buffer depleted');
   }
   for (var i = 0; i < buf.length; i++) {
     buf[i] = this.buffer[--this.size];
+    // clear buffer value
+    this.buffer[this.size] = 0;
   }
 };

@@ -51,6 +51,7 @@ function Signature() {
   this.publicKeyAlgorithm = null;
 
   this.signatureData = null;
+  this.unhashedSubpackets = null;
   this.signedHashValue = null;
 
   this.created = new Date();
@@ -166,9 +167,11 @@ Signature.prototype.read = function (bytes) {
       // hash algorithm, the hashed subpacket length, and the hashed
       // subpacket body.
       this.signatureData = bytes.substr(0, i);
+      var sigDataLength = i;
 
       // unhashed subpackets
       i += subpackets.call(this, bytes.substr(i), false);
+      this.unhashedSubpackets = bytes.substr(sigDataLength, i - sigDataLength);
 
       break;
     default:
@@ -184,7 +187,8 @@ Signature.prototype.read = function (bytes) {
 
 Signature.prototype.write = function () {
   return this.signatureData +
-    util.writeNumber(0, 2) + // Number of unsigned subpackets.
+    // unhashed subpackets or two octets for zero
+    (this.unhashedSubpackets ? this.unhashedSubpackets : util.writeNumber(0, 2)) +
     this.signedHashValue +
     this.signature;
 };
@@ -290,7 +294,7 @@ Signature.prototype.write_all_sub_packets = function () {
   }
   if (this.preferredCompressionAlgorithms !== null) {
     bytes = util.bin2str(this.preferredCompressionAlgorithms);
-    result += write_sub_packet(sub.preferred_hash_algorithms, bytes);
+    result += write_sub_packet(sub.preferred_compression_algorithms, bytes);
   }
   if (this.keyServerPreferences !== null) {
     bytes = util.bin2str(this.keyServerPreferences);
@@ -407,12 +411,7 @@ Signature.prototype.read_sub_packet = function (bytes) {
       break;
     case 11:
       // Preferred Symmetric Algorithms
-      this.preferredSymmetricAlgorithms = [];
-
-      while (mypos != bytes.length) {
-        this.preferredSymmetricAlgorithms.push(bytes.charCodeAt(mypos++));
-      }
-
+      read_array.call(this, 'preferredSymmetricAlgorithms', bytes.substr(mypos));
       break;
     case 12:
       // Revocation Key
@@ -446,7 +445,9 @@ Signature.prototype.read_sub_packet = function (bytes) {
 
         this.notation = this.notation || {};
         this.notation[name] = value;
-      } else throw new Error("Unsupported notation flag.");
+      } else {
+    	  util.print_debug("Unsupported notation flag "+bytes.charCodeAt(mypos));
+      	}
       break;
     case 21:
       // Preferred Hash Algorithms
@@ -454,7 +455,7 @@ Signature.prototype.read_sub_packet = function (bytes) {
       break;
     case 22:
       // Preferred Compression Algorithms
-      read_array.call(this, 'preferredCompressionAlgorithms ', bytes.substr(mypos));
+      read_array.call(this, 'preferredCompressionAlgorithms', bytes.substr(mypos));
       break;
     case 23:
       // Key Server Preferences
@@ -505,7 +506,7 @@ Signature.prototype.read_sub_packet = function (bytes) {
       this.embeddedSignature.read(bytes.substr(mypos));
       break;
     default:
-      throw new Error("Unknown signature subpacket type " + type + " @:" + mypos);
+    	util.print_debug("Unknown signature subpacket type " + type + " @:" + mypos);
   }
 };
 
@@ -559,7 +560,7 @@ Signature.prototype.toSign = function (type, data) {
 
     case t.key:
       if (data.key === undefined)
-        throw new Error('Key packet is required for this sigtature.');
+        throw new Error('Key packet is required for this signature.');
 
       return data.key.writeOld();
 
