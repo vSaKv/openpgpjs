@@ -1497,7 +1497,7 @@
         
             
 <dt>
-    <h4 class="name" id="generateKeyPair"><span class="type-signature">&lt;static> </span>generateKeyPair<span class="signature">(keyType, numBits, userId, passphrase, callback)</span><span class="type-signature"> &rarr; {Object}</span></h4>
+    <h4 class="name" id="generateKeyPair"><span class="type-signature">&lt;static> </span>generateKeyPair<span class="signature">(callback)</span><span class="type-signature"> &rarr; {Object}</span></h4>
     
     
 </dt>
@@ -1528,7 +1528,11 @@ Primary and subkey will be of same type.
 		<th>Type</th>
 		
 		
+		<th>Argument</th>
 		
+		
+		
+		<th>Default</th>
 		
 		
 		<th class="last">Description</th>
@@ -1540,7 +1544,7 @@ Primary and subkey will be of same type.
 	
         <tr>
             
-                <td class="name"><code>keyType</code></td>
+                <td class="name"><code>options.keyType</code></td>
             
             
             <td class="type">
@@ -1553,7 +1557,23 @@ Primary and subkey will be of same type.
             </td>
             
             
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+                    
+                
+                    
+                
+                </td>
             
+            
+            
+                <td class="default">
+                
+                    module:enums.publicKey.rsa_encrypt_sign
+                
+                </td>
             
             
             <td class="description last">to indicate what type of key to make.
@@ -1564,7 +1584,7 @@ Primary and subkey will be of same type.
 	
         <tr>
             
-                <td class="name"><code>numBits</code></td>
+                <td class="name"><code>options.numBits</code></td>
             
             
             <td class="type">
@@ -1577,7 +1597,19 @@ Primary and subkey will be of same type.
             </td>
             
             
+                <td class="attributes">
+                
+                    
+                
+                    
+                
+                </td>
             
+            
+            
+                <td class="default">
+                
+                </td>
             
             
             <td class="description last">number of bits for the key creation. (should be 1024+, generally)</td>
@@ -1587,7 +1619,7 @@ Primary and subkey will be of same type.
 	
         <tr>
             
-                <td class="name"><code>userId</code></td>
+                <td class="name"><code>options.userId</code></td>
             
             
             <td class="type">
@@ -1600,7 +1632,19 @@ Primary and subkey will be of same type.
             </td>
             
             
+                <td class="attributes">
+                
+                    
+                
+                    
+                
+                </td>
             
+            
+            
+                <td class="default">
+                
+                </td>
             
             
             <td class="description last">assumes already in form of "User Name <username@email.com>"</td>
@@ -1610,7 +1654,7 @@ Primary and subkey will be of same type.
 	
         <tr>
             
-                <td class="name"><code>passphrase</code></td>
+                <td class="name"><code>options.passphrase</code></td>
             
             
             <td class="type">
@@ -1623,10 +1667,61 @@ Primary and subkey will be of same type.
             </td>
             
             
+                <td class="attributes">
+                
+                    
+                
+                    
+                
+                </td>
             
+            
+            
+                <td class="default">
+                
+                </td>
             
             
             <td class="description last">The passphrase used to encrypt the resulting private key</td>
+        </tr>
+	
+	
+	
+        <tr>
+            
+                <td class="name"><code>options.unlocked</code></td>
+            
+            
+            <td class="type">
+            
+                
+<span class="param-type">Boolean</span>
+
+
+            
+            </td>
+            
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+                    
+                
+                    
+                
+                </td>
+            
+            
+            
+                <td class="default">
+                
+                    false
+                
+                </td>
+            
+            
+            <td class="description last">The secret part of the generated key is unlocked</td>
         </tr>
 	
 	
@@ -1646,7 +1741,19 @@ Primary and subkey will be of same type.
             </td>
             
             
+                <td class="attributes">
+                
+                    
+                
+                    
+                
+                </td>
             
+            
+            
+                <td class="default">
+                
+                </td>
             
             
             <td class="description last">(optional) callback(error, result) for async style</td>
@@ -1680,7 +1787,7 @@ Primary and subkey will be of same type.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line210">line 210</a>
+        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line211">line 211</a>
     </li></ul></dd>
     
     
@@ -2349,7 +2456,7 @@ Primary and subkey will be of same type.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line248">line 248</a>
+        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line249">line 249</a>
     </li></ul></dd>
     
     
@@ -2535,7 +2642,7 @@ Primary and subkey will be of same type.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line233">line 233</a>
+        <a href="openpgp.js.html">openpgp.js</a>, <a href="openpgp.js.html#line234">line 234</a>
     </li></ul></dd>
     
     
@@ -2582,7 +2689,7 @@ Primary and subkey will be of same type.
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Fri Apr 04 2014 19:20:32 GMT+0200 (MESZ)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Fri May 09 2014 10:49:34 GMT+0200 (MESZ)
 </footer>
 
 <script> prettyPrint(); </script>
