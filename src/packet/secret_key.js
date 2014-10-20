@@ -1,16 +1,16 @@
 // GPG4Browsers - An OpenPGP implementation in javascript
 // Copyright (C) 2011 Recurity Labs GmbH
-// 
+//
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
-// 
+// version 3.0 of the License, or (at your option) any later version.
+//
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 // Lesser General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU Lesser General Public
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -170,10 +170,18 @@ SecretKey.prototype.write = function () {
 
 
 /** Encrypt the payload. By default, we use aes256 and iterated, salted string
- * to key specifier
+ * to key specifier. If the key is in a decrypted state (isDecrypted == true)
+ * and the passphrase is empty or undefined, the key will be set as not encrypted.
+ * This can be used to remove passphrase protection after calling decrypt().
  * @param {String} passphrase
  */
 SecretKey.prototype.encrypt = function (passphrase) {
+  if (this.isDecrypted && !passphrase) {
+    this.encrypted = null;
+    return;
+  } else if (!passphrase) {
+    throw new Error('The key must be decrypted before removing passphrase protection.');
+  }
 
   var s2k = new type_s2k(),
     symmetric = 'aes256',
@@ -263,14 +271,21 @@ SecretKey.prototype.decrypt = function (passphrase) {
 };
 
 SecretKey.prototype.generate = function (bits) {
-  this.mpi = crypto.generateMpi(this.algorithm, bits);
-  this.isDecrypted = true;
+  var self = this;
+
+  return crypto.generateMpi(self.algorithm, bits).then(function(mpi) {
+    self.mpi = mpi;
+    self.isDecrypted = true;
+  });
 };
 
 /**
  * Clear private MPIs, return to initial state
  */
 SecretKey.prototype.clearPrivateMPIs = function () {
+  if (!this.encrypted) {
+    throw new Error('If secret key is not encrypted, clearing private MPIs is irreversible.');
+  }
   this.mpi = this.mpi.slice(0, crypto.getPublicMpiCount(this.algorithm));
   this.isDecrypted = false;
 };

@@ -3,7 +3,7 @@ OpenPGP.js
 
 [OpenPGP.js](http://openpgpjs.org/) is a Javascript implementation of the OpenPGP protocol. This is defined in [RFC 4880](http://tools.ietf.org/html/rfc4880).
 
-[![Build Status](https://secure.travis-ci.org/openpgpjs/openpgpjs.png?branch=master,v0.1.x)](http://travis-ci.org/openpgpjs/openpgpjs)
+[![Build Status](https://travis-ci.org/openpgpjs/openpgpjs.svg?branch=master)](https://travis-ci.org/openpgpjs/openpgpjs)
 
 ### Node support
 
@@ -11,30 +11,52 @@ For server side use, install via npm:
 
     npm install openpgp
 
+
+### Browser support
+
+For use in browser, install via bower:
+
+    bower install --save openpgp
+
+Or Fetch a minified build under [releases](https://github.com/openpgpjs/openpgpjs/releases).
+
+The library can be loaded via  AMD/require.js or accessed globally via `window.openpgp`.
+
+
+### Dependencies
+
+OpenPGP.js only supports browsers that implement `window.crypto.getRandomValues`. Also, if the browsers support [native WebCrypto](http://www.w3.org/TR/WebCryptoAPI/) via the `window.crypto.subtle` api, this will be used. Though this can be deactivated by setting `config.useWebCrypto = false`. In this case the library will fall back to Web Worker operations if the `initWorker(workerPath)` is set.
+
+OpenPGP.js uses ES6 promises which are available in [most modern browsers](http://caniuse.com/#feat=promises). If you need to support browsers that do not support Promises, fear not! There is a [polyfill](https://github.com/jakearchibald/es6-promise), which is included in the build step. So no action required on the developer's part for promises!
+
+
 ### Examples
 
 #### Encryption
-  
+
     var openpgp = require('openpgp');
     var key = '-----BEGIN PGP PUBLIC KEY BLOCK ... END PGP PUBLIC KEY BLOCK-----';
     var publicKey = openpgp.key.readArmored(key);
-    var pgpMessage = openpgp.encryptMessage(publicKey.keys, 'Hello, World!');
+    openpgp.encryptMessage(publicKey.keys, 'Hello, World!').then(function(pgpMessage) {
+        // success
+    }).catch(function(error) {
+        // failure
+    });
 
 #### Decryption
- 
+
     var openpgp = require('openpgp');
     var key = '-----BEGIN PGP PRIVATE KEY BLOCK ... END PGP PRIVATE KEY BLOCK-----';
     var privateKey = openpgp.key.readArmored(key).keys[0];
     privateKey.decrypt('passphrase');
     var pgpMessage = '-----BEGIN PGP MESSAGE ... END PGP MESSAGE-----';
     pgpMessage = openpgp.message.readArmored(pgpMessage);
-    var plaintext = openpgp.decryptMessage(privateKey, pgpMessage);
+    openpgp.decryptMessage(privateKey, pgpMessage).then(function(plaintext) {
+        // success
+    }).catch(function(error) {
+        // failure
+    });
 
-### Browser support
-
-Fetch a minified build under [releases](https://github.com/openpgpjs/openpgpjs/releases). The library can be loaded via  AMD/require.js or accessed globally via `window.openpgp`.
-
-OpenPGP.js currently only fully supports browsers that implement `window.crypto.getRandomValues`. If you can help us support more browsers and runtimes, please chip in!
 
 ### Security recommendations
 
@@ -62,7 +84,7 @@ You want to help, great! Go ahead and fork our repo, make your changes and send 
 
 ### License
 
-GNU Lesser General Public License (2.1). Please take a look at the [LICENSE](LICENSE) file for more information.
+GNU Lesser General Public License (3.0 or any later version). Please take a look at the [LICENSE](LICENSE) file for more information.
 
 ### Resources
 

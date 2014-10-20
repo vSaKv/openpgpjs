@@ -4,7 +4,7 @@
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
 // License as published by the Free Software Foundation; either
-// version 2.1 of the License, or (at your option) any later version.
+// version 3.0 of the License, or (at your option) any later version.
 // 
 // This library is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -227,8 +227,8 @@ module.exports = {
             mypos2 += tmplen;
           } else {
             mypos2++;
-            tmplen = (input.charCodeAt(mypos2++) << 24) | (input.charCodeAt(mypos2++) << 16) | (input[mypos2++]
-              .charCodeAt() << 8) | input.charCodeAt(mypos2++);
+            tmplen = (input.charCodeAt(mypos2++) << 24) | (input.charCodeAt(mypos2++) << 16) | (input
+              .charCodeAt(mypos2++) << 8) | input.charCodeAt(mypos2++);
             bodydata += input.substring(mypos2, mypos2 + tmplen);
             packet_length += tmplen;
             mypos2 += tmplen;
