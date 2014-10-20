@@ -43,16 +43,28 @@
     <section>
         <article><h1>OpenPGP.js</h1>
 <p><a href="http://openpgpjs.org/">OpenPGP.js</a> is a Javascript implementation of the OpenPGP protocol. This is defined in <a href="http://tools.ietf.org/html/rfc4880">RFC 4880</a>.</p>
-<p><a href="http://travis-ci.org/openpgpjs/openpgpjs"><img src="https://secure.travis-ci.org/openpgpjs/openpgpjs.png?branch=master,v0.1.x" alt="Build Status"></a></p>
+<p><a href="https://travis-ci.org/openpgpjs/openpgpjs"><img src="https://travis-ci.org/openpgpjs/openpgpjs.svg?branch=master" alt="Build Status"></a></p>
 <h3>Node support</h3>
 <p>For server side use, install via npm:</p>
 <pre><code>npm install openpgp</code></pre>
+<h3>Browser support</h3>
+<p>For use in browser, install via bower:</p>
+<pre><code>bower install --save openpgp</code></pre>
+<p>Or Fetch a minified build under <a href="https://github.com/openpgpjs/openpgpjs/releases">releases</a>.</p>
+<p>The library can be loaded via  AMD/require.js or accessed globally via <code>window.openpgp</code>.</p>
+<h3>Dependencies</h3>
+<p>OpenPGP.js only supports browsers that implement <code>window.crypto.getRandomValues</code>. Also, if the browsers support <a href="http://www.w3.org/TR/WebCryptoAPI/">native WebCrypto</a> via the <code>window.crypto.subtle</code> api, this will be used. Though this can be deactivated by setting <code>config.useWebCrypto = false</code>. In this case the library will fall back to Web Worker operations if the <code>initWorker(workerPath)</code> is set.</p>
+<p>OpenPGP.js uses ES6 promises which are available in <a href="http://caniuse.com/#feat=promises">most modern browsers</a>. If you need to support browsers that do not support Promises, fear not! There is a <a href="https://github.com/jakearchibald/es6-promise">polyfill</a>, which is included in the build step. So no action required on the developer's part for promises!</p>
 <h3>Examples</h3>
 <h4>Encryption</h4>
 <pre><code>var openpgp = require('openpgp');
 var key = '-----BEGIN PGP PUBLIC KEY BLOCK ... END PGP PUBLIC KEY BLOCK-----';
 var publicKey = openpgp.key.readArmored(key);
-var pgpMessage = openpgp.encryptMessage(publicKey.keys, 'Hello, World!');</code></pre>
+openpgp.encryptMessage(publicKey.keys, 'Hello, World!').then(function(pgpMessage) {
+    // success
+}).catch(function(error) {
+    // failure
+});</code></pre>
 <h4>Decryption</h4>
 <pre><code>var openpgp = require('openpgp');
 var key = '-----BEGIN PGP PRIVATE KEY BLOCK ... END PGP PRIVATE KEY BLOCK-----';
@@ -60,10 +72,11 @@ var privateKey = openpgp.key.readArmored(key).keys[0];
 privateKey.decrypt('passphrase');
 var pgpMessage = '-----BEGIN PGP MESSAGE ... END PGP MESSAGE-----';
 pgpMessage = openpgp.message.readArmored(pgpMessage);
-var plaintext = openpgp.decryptMessage(privateKey, pgpMessage);</code></pre>
-<h3>Browser support</h3>
-<p>Fetch a minified build under <a href="https://github.com/openpgpjs/openpgpjs/releases">releases</a>. The library can be loaded via  AMD/require.js or accessed globally via <code>window.openpgp</code>.</p>
-<p>OpenPGP.js currently only fully supports browsers that implement <code>window.crypto.getRandomValues</code>. If you can help us support more browsers and runtimes, please chip in!</p>
+openpgp.decryptMessage(privateKey, pgpMessage).then(function(plaintext) {
+    // success
+}).catch(function(error) {
+    // failure
+});</code></pre>
 <h3>Security recommendations</h3>
 <p>It should be noted that js crypto apps deployed via regular web hosting (a.k.a. <a href="https://www.schneier.com/blog/archives/2012/08/cryptocat.html"><strong>host-based security</strong></a>) provide users with less security than installable apps with auditable static versions. Installable apps can be deployed as a <a href="https://developer.mozilla.org/en-US/Marketplace/Publishing/Packaged_apps">Firefox</a> or <a href="http://developer.chrome.com/apps/about_apps.html">Chrome</a> packaged app. These apps are basically signed zip files and their runtimes typically enforce a strict <a href="http://www.html5rocks.com/en/tutorials/security/content-security-policy/">Content Security Policy (CSP)</a> to protect users against <a href="http://en.wikipedia.org/wiki/Cross-site_scripting">XSS</a>. This <a href="http://tonyarcieri.com/whats-wrong-with-webcrypto">blogpost</a> explains the trust model of the web quite well.</p>
 <p>It is also recommended to set a strong passphrase that protects the user's private key on disk.</p>
@@ -77,7 +90,7 @@ var plaintext = openpgp.decryptMessage(privateKey, pgpMessage);</code></pre>
 <h3>How do I get involved?</h3>
 <p>You want to help, great! Go ahead and fork our repo, make your changes and send us a pull request.</p>
 <h3>License</h3>
-<p>GNU Lesser General Public License (2.1). Please take a look at the <a href="LICENSE">LICENSE</a> file for more information.</p>
+<p>GNU Lesser General Public License (3.0 or any later version). Please take a look at the <a href="LICENSE">LICENSE</a> file for more information.</p>
 <h3>Resources</h3>
 <p>Below is a collection of resources, many of these were projects that were in someway a precursor to the current OpenPGP.js project. If you'd like to add your link here, please do so in a pull request or email to the list.</p>
 <ul>
@@ -190,7 +203,7 @@ for extending and developing on top of the base library.</div>
 <br clear="both">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Sat Jun 28 2014 16:58:43 GMT+0200 (MESZ)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.2.2</a> on Mon Oct 20 2014 17:48:32 GMT+0200 (MESZ)
 </footer>
 
 <script> prettyPrint(); </script>
