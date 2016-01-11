@@ -2,6 +2,10 @@ module.exports = function(grunt) {
 
   var version = grunt.option('release');
 
+  if (process.env.SELENIUM_BROWSER_CAPABILITIES != undefined) {
+    var browser_capabilities = JSON.parse(process.env.SELENIUM_BROWSER_CAPABILITIES);
+  }
+
   // Project configuration.
   grunt.initConfig({
     pkg: grunt.file.readJSON('package.json'),
@@ -11,8 +15,10 @@ module.exports = function(grunt) {
           'dist/openpgp.js': [ './src/index.js' ]
         },
         options: {
-          standalone: 'openpgp',
-          external: [ 'crypto', 'node-localstorage' ]
+          browserifyOptions: {
+            standalone: 'openpgp',
+            external: [ 'crypto', 'node-localstorage' ]
+          }
         }
       },
       openpgp_debug: {
@@ -20,9 +26,11 @@ module.exports = function(grunt) {
           'dist/openpgp_debug.js': [ './src/index.js' ]
         },
         options: {
-          debug: true,
-          standalone: 'openpgp',
-          external: [ 'crypto', 'node-localstorage' ]
+          browserifyOptions: {
+            debug: true,
+            standalone: 'openpgp',
+            external: [ 'crypto', 'node-localstorage' ]
+          }
         }
       },
       worker: {
@@ -37,10 +45,13 @@ module.exports = function(grunt) {
       },
       unittests: {
         files: {
+          'test/openpgp.js': [ './test/src/index.js' ],
           'test/lib/unittests-bundle.js': [ './test/unittests.js' ]
         },
         options: {
-          external: [ 'openpgp', 'crypto', 'node-localstorage']
+          browserifyOptions: {
+            external: [ 'openpgp', 'crypto', 'node-localstorage']
+          }
         }
       }
     },
@@ -105,10 +116,29 @@ module.exports = function(grunt) {
         }
       }
     },
+    mocha_istanbul: {
+      coverage: {
+        src: 'test',
+        options: {
+          root: 'node_modules/openpgp',
+          timeout: 240000,
+        }
+      },
+      coveralls: {
+        src: ['test'],
+        options: {
+          root: 'node_modules/openpgp',
+          timeout: 240000,
+          coverage: true,
+          reportFormats: ['cobertura','lcovonly']
+        }
+      }
+    },
     mochaTest: {
       unittests: {
         options: {
-          reporter: 'spec'
+          reporter: 'spec',
+          timeout: 120000
         },
         src: [ 'test/unittests.js' ]
       }
@@ -118,8 +148,15 @@ module.exports = function(grunt) {
         expand: true,
         flatten: true,
         cwd: 'node_modules/',
-        src: ['mocha/mocha.css', 'mocha/mocha.js', 'chai/chai.js'],
+        src: ['mocha/mocha.css', 'mocha/mocha.js', 'chai/chai.js', 'whatwg-fetch/fetch.js'],
         dest: 'test/lib/'
+      },
+      unittests: {
+        expand: true,
+        flatten: false,
+        cwd: './',
+        src: ['src/**'],
+        dest: 'test/'
       },
       zlib: {
         expand: true,
@@ -132,11 +169,27 @@ module.exports = function(grunt) {
     connect: {
       dev: {
         options: {
-          port: 8588,
-          base: '.',
-          keepalive: true
+          port: 3000,
+          base: '.'
         }
       }
+    },
+    'saucelabs-mocha': {
+      all: {
+        options: {
+          username: 'openpgpjs',
+          key: '60ffb656-2346-4b77-81f3-bc435ff4c103',
+          urls: ['http://127.0.0.1:3000/test/unittests.html'],
+          build: process.env.TRAVIS_BUILD_ID,
+          testname: 'Sauce Unit Test for openpgpjs',
+          browsers: [browser_capabilities],
+          public: "public",
+          maxRetries: 3,
+          throttled: 2,
+          pollInterval: 4000,
+          statusCheckAttempts: 200
+        }
+      },
     }
   });
 
@@ -147,10 +200,12 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-jsbeautifier');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-jsdoc');
+  grunt.loadNpmTasks('grunt-mocha-istanbul');
   grunt.loadNpmTasks('grunt-mocha-test');
   grunt.loadNpmTasks('grunt-contrib-copy');
   grunt.loadNpmTasks('grunt-contrib-clean');
   grunt.loadNpmTasks('grunt-contrib-connect');
+  grunt.loadNpmTasks('grunt-saucelabs');
 
   grunt.registerTask('set_version', function() {
     if (!version) {
@@ -188,16 +243,6 @@ module.exports = function(grunt) {
 
   grunt.registerTask('documentation', ['jsdoc']);
 
-  // Alias the `mocha_phantomjs` task to run `mocha-phantomjs`
-  grunt.registerTask('mocha_phantomjs', 'mocha-phantomjs', function () {
-    var done = this.async();
-    var mocha = require('child_process').exec('node_modules/mocha-phantomjs/bin/mocha-phantomjs ./test/unittests.html', function (err) {
-      done(err);
-    });
-    mocha.stdout.pipe(process.stdout);
-    mocha.stderr.pipe(process.stderr);
-  });
-
   // Alias the `npm_pack` task to run `npm pack`
   grunt.registerTask('npm_pack', 'npm pack', function () {
     var done = this.async();
@@ -217,6 +262,18 @@ module.exports = function(grunt) {
     npm.stderr.pipe(process.stderr);
   });
 
+  grunt.event.on('coverage', function(lcov, done){
+    require('coveralls').handleInput(lcov, function(err){
+      if (err) {
+        return done(err);
+      }
+    done();
+    });
+  });
+
   // Test/Dev tasks
-  grunt.registerTask('test', ['copy:npm', 'mochaTest', 'mocha_phantomjs']);
+  grunt.registerTask('test', ['copy:npm', 'copy:unittests', 'mochaTest']);
+  grunt.registerTask('coverage', ['default', 'copy:npm', 'copy:unittests', 'mocha_istanbul:coverage']);
+  grunt.registerTask('coveralls', ['default', 'copy:npm', 'copy:unittests', 'mocha_istanbul:coveralls']);
+  grunt.registerTask('saucelabs', ['default', 'copy:npm', 'copy:unittests', 'connect', 'saucelabs-mocha']);
 };

@@ -151,7 +151,7 @@ function RSA() {
         keyGenOpt = {
           name: 'RSA-OAEP',
           modulusLength: B, // the specified keysize in bits
-          publicExponent: Euint8.subarray(0, 3), // take three bytes (max 65537)
+          publicExponent: Euint8.subarray(0, 3) // take three bytes (max 65537)
         };
         keys = webCrypto.generateKey(keyGenOpt, true, ['encrypt', 'decrypt']);
       }
@@ -167,7 +167,7 @@ function RSA() {
         };
         
         keys = webCrypto.generateKey(keyGenOpt, true, ['sign', 'verify']);
-        if (!(keys instanceof Promise)) { // IE11 KeyOperation
+        if (!(typeof keys.then === 'function')) { // IE11 KeyOperation
           keys = convertKeyOperation(keys, 'Error generating RSA key pair.');
         }
       }
@@ -185,7 +185,7 @@ function RSA() {
       // export the generated keys as JsonWebKey (JWK)
       // https://tools.ietf.org/html/draft-ietf-jose-json-web-key-33
       var key = webCrypto.exportKey('jwk', keypair.privateKey);
-      if (!(key instanceof Promise)) { // IE11 KeyOperation
+      if (!(typeof key.then === 'function')) { // IE11 KeyOperation
         key = convertKeyOperation(key, 'Error exporting RSA key pair.');
       }
       return key;
@@ -214,10 +214,10 @@ function RSA() {
       return new Promise(function(resolve, reject) {
         keyop.onerror = function (err) { 
           reject(new Error(errmsg));
-        }
+        };
         keyop.oncomplete = function (e) {
           resolve(e.target.result);
-        }
+        };
       });
     }
 

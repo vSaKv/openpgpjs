@@ -1,10 +1,9 @@
-[![Build Status](https://travis-ci.org/openpgpjs/openpgpjs.svg?branch=master)](https://travis-ci.org/openpgpjs/openpgpjs)
-[![Bountysource](https://www.bountysource.com/badge/team?team_id=10316&style=raised)](https://www.bountysource.com/teams/openpgpjs?utm_source=openpgpjs&utm_medium=shield&utm_campaign=raised)
-
-OpenPGP.js
+OpenPGP.js [![Build Status](https://travis-ci.org/openpgpjs/openpgpjs.svg?branch=master)](https://travis-ci.org/openpgpjs/openpgpjs) [![Coverage Status](https://coveralls.io/repos/openpgpjs/openpgpjs/badge.svg)](https://coveralls.io/r/openpgpjs/openpgpjs)
 ==========
 
 [OpenPGP.js](http://openpgpjs.org/) is a Javascript implementation of the OpenPGP protocol. This is defined in [RFC 4880](http://tools.ietf.org/html/rfc4880).
+
+[![Saucelabs Test Status](https://saucelabs.com/browser-matrix/openpgpjs.svg)](https://saucelabs.com/u/openpgpjs)
 
 ### Node support
 
@@ -30,6 +29,8 @@ OpenPGP.js only supports browsers that implement `window.crypto.getRandomValues`
 
 OpenPGP.js uses ES6 promises which are available in [most modern browsers](http://caniuse.com/#feat=promises). If you need to support browsers that do not support Promises, fear not! There is a [polyfill](https://github.com/jakearchibald/es6-promise), which is included in the build step. So no action required on the developer's part for promises!
 
+For the OpenPGP HTTP Key Server (HKP) client the new [fetch api](https://fetch.spec.whatwg.org) is used. There is a polyfill for both [browsers](https://github.com/github/fetch) and [node.js](https://github.com/bitinn/node-fetch) runtimes. These are not bundled in the library however and users must add these themselves. See the unit tests for examples of how to integrate them.
+
 
 ### Examples
 
@@ -47,6 +48,32 @@ openpgp.generateKeyPair(options).then(function(keypair) {
     // success
     var privkey = keypair.privateKeyArmored;
     var pubkey = keypair.publicKeyArmored;
+}).catch(function(error) {
+    // failure
+});
+```
+
+#### Lookup public key on HKP server
+```js
+var openpgp = require('openpgp');
+var hkp = new openpgp.HKP('https://pgp.mit.edu');
+
+hkp.lookup({
+    query: 'alice@example.com'
+}).then(function(key) {
+    var publicKey = openpgp.key.readArmored(key);
+});
+```
+
+#### Upload public key to HKP server
+```js
+var openpgp = require('openpgp');
+var hkp = new openpgp.HKP('https://pgp.mit.edu');
+
+var key = '-----BEGIN PGP PUBLIC KEY BLOCK ... END PGP PUBLIC KEY BLOCK-----';
+
+hkp.upload(key).then(function() {
+    // success
 }).catch(function(error) {
     // failure
 });
@@ -94,7 +121,7 @@ To date the OpenPGP.js code base has undergone two complete security audits from
 
 ### Security recommendations
 
-It should be noted that js crypto apps deployed via regular web hosting (a.k.a. [**host-based security**](https://www.schneier.com/blog/archives/2012/08/cryptocat.html)) provide users with less security than installable apps with auditable static versions. Installable apps can be deployed as a [Firefox](https://developer.mozilla.org/en-US/Marketplace/Publishing/Packaged_apps) or [Chrome](http://developer.chrome.com/apps/about_apps.html) packaged app. These apps are basically signed zip files and their runtimes typically enforce a strict [Content Security Policy (CSP)](http://www.html5rocks.com/en/tutorials/security/content-security-policy/) to protect users against [XSS](http://en.wikipedia.org/wiki/Cross-site_scripting). This [blogpost](http://tonyarcieri.com/whats-wrong-with-webcrypto) explains the trust model of the web quite well.
+It should be noted that js crypto apps deployed via regular web hosting (a.k.a. [**host-based security**](https://www.schneier.com/blog/archives/2012/08/cryptocat.html)) provide users with less security than installable apps with auditable static versions. Installable apps can be deployed as a [Firefox](https://developer.mozilla.org/en-US/Marketplace/Options/Packaged_apps) or [Chrome](https://developer.chrome.com/apps/about_apps.html) packaged app. These apps are basically signed zip files and their runtimes typically enforce a strict [Content Security Policy (CSP)](http://www.html5rocks.com/en/tutorials/security/content-security-policy/) to protect users against [XSS](https://en.wikipedia.org/wiki/Cross-site_scripting). This [blogpost](http://tonyarcieri.com/whats-wrong-with-webcrypto) explains the trust model of the web quite well.
 
 It is also recommended to set a strong passphrase that protects the user's private key on disk.
 
@@ -122,8 +149,9 @@ Below is a collection of resources, many of these were projects that were in som
 
 * [http://www.hanewin.net/encrypt/](http://www.hanewin.net/encrypt/)
 * [https://github.com/seancolyer/gmail-crypt](https://github.com/seancolyer/gmail-crypt)
-* [https://github.com/mete0r/openpgp-js](https://github.com/mete0r/openpgp-js)
-* [http://fitblip.github.com/JSPGP-Stuffs/](http://fitblip.github.com/JSPGP-Stuffs/)
+* [https://github.com/mete0r/jspg](https://github.com/mete0r/jspg)
+* [http://fitblip.pub/JSPGP-Stuffs/](http://fitblip.pub/JSPGP-Stuffs/)
 * [http://qooxdoo.org/contrib/project/crypto](http://qooxdoo.org/contrib/project/crypto)
 * [https://github.com/GPGTools/Mobile/wiki/Introduction](https://github.com/GPGTools/Mobile/wiki/Introduction)
 * [http://gpg4browsers.recurity.com/](http://gpg4browsers.recurity.com/)
+* [https://github.com/gmontalvoriv/mailock](https://github.com/gmontalvoriv/mailock)
